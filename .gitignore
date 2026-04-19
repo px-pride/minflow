@@ -1,86 +1,56 @@
-# Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# INVERTED / ALLOWLIST-STYLE GITIGNORE
+#
+# This gitignore is inverted: everything is ignored by default, and only
+# explicitly-allowlisted paths are eligible to be tracked. The goal is
+# to minimize the risk of a rogue agent (or human) accidentally staging
+# sensitive data, runtime state, build artifacts, or personal scratch
+# files.
+#
+# To track a new top-level path, add a `!/name` negation below. To add
+# a tracked file inside an otherwise-ignored subtree (like .claude/),
+# negate each parent directory first, then the target.
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# --- Ignore everything at the repo root ---
+/*
 
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
+# --- Allowlisted top-level directories ---
+!/.github/
+!/css/
+!/js/
+!/shared/
+!/tests/
 
-# OS files
-.DS_Store
-Thumbs.db
+# --- Allowlisted top-level files ---
+!/.gitignore
+!/.prettierignore
+!/.prettierrc.json
+!/ARCHITECTURE_AUDIT.md
+!/CLAUDE.md
+!/cli.js
+!/commands.txt
+!/DESIGN.md
+!/DEV.md
+!/DOC.md
+!/FILEFORMAT.md
+!/index.html
+!/INTEGRATION_PROPOSAL.md
+!/LICENSE
+!/main.js
+!/MINFLOW_CLI.md
+!/package.json
+!/package-lock.json
+!/PSEUDOCODE.md
+!/README.md
+!/server.js
+!/todo.md
+!/workspace-service.js
 
-# IDE files
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# Build outputs
-dist/
-build/
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
-
-# Database
-*.sqlite
-*.sqlite3
-*.db
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv/
-
-# MinFlow specific
-minflow-data.json
-workspace-backup-*.json
-minflow-workspace.*.backup.json
-minflow.service
-
-# Local config
-.mcp.json
-.claude/
-.ripgreprc
-.gitconfig
-.gitmodules
-
-# Shell dotfiles (artifacts)
-.bash_profile
-.bashrc
-.zshrc
-.zprofile
-.profile
-
-# Bare git artifacts
-HEAD
-config
-hooks/
-objects/
-refs/
-
-# Test artifacts
-test-results/
-minflow-gui-test.png
+# --- Build / cache artifacts anywhere in the tree ---
+**/node_modules/
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/.venv/
+**/dist/
+**/build/
+**/target/
