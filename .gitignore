@@ -1,0 +1,86 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# MinFlow specific
+minflow-data.json
+workspace-backup-*.json
+minflow-workspace.*.backup.json
+minflow.service
+
+# Local config
+.mcp.json
+.claude/
+.ripgreprc
+.gitconfig
+.gitmodules
+
+# Shell dotfiles (artifacts)
+.bash_profile
+.bashrc
+.zshrc
+.zprofile
+.profile
+
+# Bare git artifacts
+HEAD
+config
+hooks/
+objects/
+refs/
+
+# Test artifacts
+test-results/
+minflow-gui-test.png

@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MinFlow - Visual Task Management</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="dark-mode">
+    <div id="app">
+      <!-- Main Application -->
+      <div id="main-app" class="main-app">
+        <!-- Three-panel layout -->
+        <div class="panel-container">
+          <!-- Multi-tab Left Panel -->
+          <div class="panel left-panel">
+            <div class="tab-header">
+              <button class="tab-button active" data-tab="history">History</button>
+              <button class="tab-button" data-tab="notes">Notes</button>
+            </div>
+            <div class="tab-content">
+              <!-- History Tab -->
+              <div id="history-tab" class="tab-pane active">
+                <div class="history-controls">
+                  <label class="history-verbose-label">
+                    <input type="checkbox" id="history-verbose-checkbox" checked />
+                    <span>Verbose</span>
+                  </label>
+                </div>
+                <div id="history-list" class="history-list">
+                  <!-- History items will be dynamically added here -->
+                </div>
+              </div>
+              <!-- Notes Tab -->
+              <div id="notes-tab" class="tab-pane">
+                <div class="notes-toolbar">
+                  <button class="toolbar-btn" data-command="bold" title="Bold">
+                    <strong>B</strong>
+                  </button>
+                  <button class="toolbar-btn" data-command="italic" title="Italic">
+                    <em>I</em>
+                  </button>
+                  <button class="toolbar-btn" data-command="underline" title="Underline">
+                    <u>U</u>
+                  </button>
+                  <div class="toolbar-separator"></div>
+                  <select id="font-family" class="toolbar-select" data-command="fontName">
+                    <option value="Arial">Arial</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Helvetica">Helvetica</option>
+                  </select>
+                  <select id="font-size" class="toolbar-select">
+                    <option value="12px">12</option>
+                    <option value="14px" selected>14</option>
+                    <option value="16px">16</option>
+                    <option value="18px">18</option>
+                    <option value="20px">20</option>
+                    <option value="24px">24</option>
+                    <option value="28px">28</option>
+                    <option value="32px">32</option>
+                  </select>
+                  <input
+                    type="color"
+                    id="font-color"
+                    value="#e0e0e0"
+                    class="color-picker"
+                    data-command="foreColor"
+                  />
+                  <div class="toolbar-separator"></div>
+                  <button class="toolbar-btn" data-command="removeFormat" title="Clear Formatting">
+                    <span class="clear-format-icon">&#x2715;</span>
+                  </button>
+                </div>
+                <div
+                  id="notes-editor"
+                  class="notes-editor"
+                  contenteditable="true"
+                  data-placeholder="Write your notes here..."
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resize handle: left panel ↔ main -->
+          <div class="resize-handle resize-handle-left" data-panel="left"></div>
+
+          <!-- Main Panel with Canvas -->
+          <div class="panel main-panel">
+            <div class="canvas-container">
+              <canvas id="main-canvas" class="main-canvas"></canvas>
+            </div>
+            <!-- Deck context menu -->
+            <div id="deck-menu" class="context-menu hidden">
+              <div class="menu-item menu-task-section" data-action="complete-task">
+                Complete Top Task
+              </div>
+              <div class="menu-item menu-task-section" data-action="delete-task">
+                Delete Top Task
+              </div>
+              <div class="menu-separator menu-task-section"></div>
+              <div class="menu-item" data-action="edit">Edit Deck</div>
+              <div class="menu-item" data-action="delete">Delete Deck</div>
+            </div>
+          </div>
+
+          <!-- Resize handle: main ↔ side panel -->
+          <div class="resize-handle resize-handle-right" data-panel="right"></div>
+
+          <!-- Side Panel -->
+          <div class="panel side-panel">
+            <h2 id="deck-title" class="deck-title">Select a deck</h2>
+            <div id="deck-meta" class="deck-meta hidden">
+              <span id="deck-status-badge" class="deck-status-badge hidden"></span>
+              <p id="deck-description" class="deck-description hidden"></p>
+            </div>
+            <div
+              class="deck-controls hidden"
+              id="deck-controls"
+            >
+              <button id="edit-deck-btn" class="btn btn-secondary">Edit Deck</button>
+              <button id="reset-deck-btn" class="btn btn-secondary hidden">
+                Reset
+              </button>
+              <label class="inline-label">
+                <input type="checkbox" id="deck-recurrent-toggle" />
+                <span>Recurrent</span>
+              </label>
+            </div>
+
+            <div class="side-panel-content">
+              <!-- Card input -->
+              <div class="card-input-section hidden" id="card-input-section">
+                <form id="card-form" class="card-form">
+                  <input
+                    type="text"
+                    id="card-input"
+                    class="card-input"
+                    placeholder="Enter card text"
+                    disabled
+                  />
+                  <select id="card-position" class="card-position-select" disabled>
+                    <option value="bottom">Bottom</option>
+                    <option value="top">Top</option>
+                  </select>
+                  <button type="submit" id="add-card-btn" class="btn btn-primary" disabled>
+                    Add Card
+                  </button>
+                </form>
+              </div>
+
+              <!-- Card list -->
+              <div class="card-list-section">
+                <div class="card-tabs">
+                  <button class="card-tab active" data-tab="incomplete">
+                    Active <span id="incomplete-count" class="tab-count"></span>
+                  </button>
+                  <button class="card-tab" data-tab="completed">
+                    Completed <span id="completed-count" class="tab-count"></span>
+                  </button>
+                  <button class="card-tab" data-tab="info">
+                    Info
+                  </button>
+                </div>
+                <div id="card-list" class="card-list">
+                  <!-- Cards will be dynamically added here -->
+                </div>
+                <div id="deck-info-panel" class="deck-info-panel hidden">
+                  <div class="info-field">
+                    <label for="deck-done-textarea">What's Done</label>
+                    <textarea id="deck-done-textarea" class="info-textarea" placeholder="Completed milestones (markdown)..." rows="6"></textarea>
+                  </div>
+                  <div class="info-field">
+                    <label for="deck-notes-textarea">Notes</label>
+                    <textarea id="deck-notes-textarea" class="info-textarea" placeholder="Open questions, references, misc context (markdown)..." rows="6"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile: side panel toggle + backdrop -->
+        <div class="mobile-panel-backdrop" id="mobile-panel-backdrop"></div>
+        <button class="mobile-panel-toggle" id="mobile-panel-toggle" title="Toggle side panel">&#9776;</button>
+
+        <!-- Bottom toolbar -->
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button id="add-deck-btn" class="btn">Add Deck</button>
+            <button id="save-btn" class="btn">Export</button>
+            <button id="load-btn" class="btn">Import</button>
+            <button id="help-btn" class="btn">Help</button>
+          </div>
+          <div class="toolbar-center">
+            <div class="filter-controls">
+              <label class="filter-label">Filters:</label>
+              <select id="color-filter" class="filter-select">
+                <option value="">All Colors</option>
+              </select>
+              <select id="shape-filter" class="filter-select">
+                <option value="">All Shapes</option>
+                <option value="rectangle">Rectangle</option>
+                <option value="circle">Circle</option>
+                <option value="hexagon">Hexagon</option>
+                <option value="pentagon">Pentagon</option>
+                <option value="octagon">Octagon</option>
+              </select>
+              <label class="filter-label">Min Size:</label>
+              <input
+                type="range"
+                id="size-filter"
+                class="filter-range"
+                min="10"
+                max="300"
+                value="10"
+              />
+              <span id="size-filter-value" class="filter-value">10</span>
+              <button id="clear-filters-btn" class="btn btn-small">Clear</button>
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <button id="dark-mode-toggle" class="btn btn-secondary" title="Toggle dark mode">
+              &#x2600;&#xFE0F;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Help Dialog -->
+      <div id="help-dialog" class="dialog hidden">
+        <div class="dialog-content">
+          <h2>MinFlow Help</h2>
+          <div class="help-content">
+            <h3>Getting Started</h3>
+            <ul>
+              <li>
+                <strong>Decks</strong> are containers for your tasks. Click "Add Deck" to create
+                one.
+              </li>
+              <li>
+                <strong>Cards</strong> are individual tasks within a deck. Select a deck and use the
+                side panel to add cards.
+              </li>
+              <li>
+                <strong>Visual Organization</strong> - Arrange decks on the canvas by dragging them
+                around.
+              </li>
+            </ul>
+
+            <h3>Deck Operations</h3>
+            <ul>
+              <li><strong>Select</strong> - Click a deck to view and manage its cards</li>
+              <li><strong>Move</strong> - Click and drag to reposition decks</li>
+              <li><strong>Resize</strong> - Drag the bottom-right corner handle</li>
+              <li>
+                <strong>Multi-select</strong> - Click and drag on empty canvas to select multiple
+                decks
+              </li>
+              <li><strong>Edit</strong> - Right-click a deck and choose "Edit Deck"</li>
+              <li><strong>Delete</strong> - Press Delete key or use right-click menu</li>
+            </ul>
+
+            <h3>Card Management</h3>
+            <ul>
+              <li>
+                <strong>Add Card</strong> - Select a deck, type in the side panel, and click "Add
+                Card"
+              </li>
+              <li><strong>Complete Card</strong> - Click the "Complete" button on any card</li>
+              <li><strong>Reorder</strong> - Drag and drop cards to rearrange them</li>
+              <li><strong>Delete Card</strong> - Click the "Delete" button on any card</li>
+            </ul>
+
+            <h3>Features</h3>
+            <ul>
+              <li>
+                <strong>Filters</strong> - Use the bottom toolbar to filter decks by color, shape,
+                or size
+              </li>
+              <li><strong>Dark Mode</strong> - Toggle with the sun/moon button in the toolbar</li>
+              <li>
+                <strong>Notes</strong> - Use the Notes tab in the left panel for freeform text
+              </li>
+              <li><strong>History</strong> - View your recent actions in the History tab</li>
+              <li>
+                <strong>Export/Import</strong> - Save and load your workspace using the toolbar
+                buttons
+              </li>
+            </ul>
+
+            <h3>Keyboard Shortcuts</h3>
+            <ul>
+              <li><kbd>Ctrl+Z</kbd> - Undo</li>
+              <li><kbd>Ctrl+Shift+Z</kbd> / <kbd>Ctrl+Y</kbd> - Redo</li>
+              <li><kbd>Delete</kbd> - Delete selected deck(s)</li>
+              <li><kbd>Escape</kbd> - Deselect all</li>
+            </ul>
+          </div>
+          <button id="close-help-btn" class="btn">Close</button>
+        </div>
+      </div>
+
+      <!-- Deck Creation Dialog -->
+      <div id="deck-creation-dialog" class="dialog hidden">
+        <div class="dialog-content deck-creation-content">
+          <h2>Create New Deck</h2>
+          <form id="deck-creation-form">
+            <div class="form-group">
+              <label for="deck-name">Deck Name</label>
+              <input type="text" id="deck-name" placeholder="Enter deck name" required />
+            </div>
+
+            <div class="form-group">
+              <label for="deck-description-input">Description</label>
+              <input type="text" id="deck-description-input" placeholder="One-liner overview (optional)" />
+            </div>
+
+            <div class="form-group">
+              <label for="deck-status-input">Status</label>
+              <input type="text" id="deck-status-input" placeholder="e.g. active, prototype, paused (optional)" />
+            </div>
+
+            <div class="form-group">
+              <label>Shape</label>
+              <div class="shape-selector">
+                <label class="shape-option">
+                  <input type="radio" name="deck-shape" value="rectangle" checked />
+                  <div class="shape-preview rectangle"></div>
+                  <span>Rectangle</span>
+                </label>
+                <label class="shape-option">
+                  <input type="radio" name="deck-shape" value="circle" />
+                  <div class="shape-preview circle"></div>
+                  <span>Circle</span>
+                </label>
+                <label class="shape-option">
+                  <input type="radio" name="deck-shape" value="hexagon" />
+                  <div class="shape-preview hexagon"></div>
+                  <span>Hexagon</span>
+                </label>
+                <label class="shape-option">
+                  <input type="radio" name="deck-shape" value="pentagon" />
+                  <div class="shape-preview pentagon"></div>
+                  <span>Pentagon</span>
+                </label>
+                <label class="shape-option">
+                  <input type="radio" name="deck-shape" value="octagon" />
+                  <div class="shape-preview octagon"></div>
+                  <span>Octagon</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="deck-color">Color</label>
+              <div class="color-selector">
+                <input type="color" id="deck-color" value="#4a5568" />
+                <span id="color-preview" class="color-preview">#4a5568</span>
+              </div>
+              <div id="color-palette" class="color-palette">
+                <!-- Color swatches will be added here dynamically -->
+              </div>
+            </div>
+
+            <div class="form-group staleness-group">
+              <label>Staleness</label>
+              <div class="staleness-fields">
+                <div class="staleness-field">
+                  <label for="deck-staling-rate">Rate (px/hr)</label>
+                  <input type="number" id="deck-staling-rate" min="0" step="0.1" value="0" />
+                </div>
+                <div class="staleness-field">
+                  <label for="deck-max-staleness">Max (px)</label>
+                  <input type="number" id="deck-max-staleness" min="0" step="1" value="60" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="inline-label">
+                <input type="checkbox" id="deck-recurrent" />
+                <span>Recurrent (completed tasks are re-added to bottom)</span>
+              </label>
+            </div>
+
+            <div class="dialog-buttons">
+              <button type="submit" class="btn btn-primary">Create Deck</button>
+              <button type="button" id="cancel-deck-btn" class="btn btn-secondary">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Loading overlay -->
+      <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-content">
+          <div class="loading-spinner"></div>
+          <p id="loading-message">Loading...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- JavaScript modules -->
+    <script src="shared/deck-queries.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/models.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/keyboard-manager.js"></script>
+    <script src="js/notes-editor.js"></script>
+    <script src="js/preferences-manager.js"></script>
+    <script src="js/panel-resizer.js"></script>
+    <script src="js/canvas-interaction.js"></script>
+    <script src="js/card-manager.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/controllers.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+api/node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Database files
+*.sql
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+
+# Minified files
+*.min.js
+*.min.css
+
+# Vendor files
+vendor/

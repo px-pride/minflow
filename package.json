@@ -1,0 +1,24 @@
+{
+  "name": "minflow",
+  "version": "1.0.0",
+  "main": "main.js",
+  "bin": {
+    "minflow": "./cli.js"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "server": "node server.js",
+    "test": "node tests/app-launch.test.js && node tests/deck-crud.test.js && node tests/card-crud.test.js && node tests/recurrent-cycle.test.js && node tests/size-system.test.js && node tests/server-client.test.js"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "playwright": "^1.58.2",
+    "prettier": "^3.6.2"
+  },
+  "dependencies": {
+    "@fastify/static": "^9.0.0",
+    "@fastify/websocket": "^11.2.0",
+    "fastify": "^5.8.1"
+  }
+}
