@@ -24,25 +24,16 @@
 !/.gitignore
 !/.prettierignore
 !/.prettierrc.json
-!/ARCHITECTURE_AUDIT.md
-!/CLAUDE.md
 !/cli.js
-!/commands.txt
-!/DESIGN.md
-!/DEV.md
-!/DOC.md
 !/FILEFORMAT.md
 !/index.html
-!/INTEGRATION_PROPOSAL.md
 !/LICENSE
 !/main.js
 !/MINFLOW_CLI.md
 !/package.json
 !/package-lock.json
-!/PSEUDOCODE.md
 !/README.md
 !/server.js
-!/todo.md
 !/workspace-service.js
 
 # --- Build / cache artifacts anywhere in the tree ---

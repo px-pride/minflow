@@ -75,8 +75,6 @@ To modify MinFlow:
 2. Modify styles in `css/styles.css`
 3. Update HTML structure in `index.html`
 
-See `DOC.md` for detailed code documentation and `DESIGN.md` for architecture details.
-
 ## License
 
 MinFlow is released under the MIT License. See `LICENSE` for details.
