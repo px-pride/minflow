@@ -16,7 +16,9 @@
 # --- Allowlisted top-level directories ---
 !/.github/
 !/css/
+!/db/
 !/js/
+!/scripts/
 !/shared/
 !/tests/
 
