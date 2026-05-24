@@ -59,6 +59,51 @@ async function startServer({ dataDir, port, logger = true } = {}) {
     };
   }
 
+  // --- Health check ---
+  // Per textbook ch-01 "The Health Check That Wasn't": hit real dependencies,
+  // not just process liveness. If DATABASE_URL / REDIS_URL aren't configured
+  // (e.g. local Electron mode), the check just reports them as 'not configured'
+  // and stays green — the cloud path is optional in dev.
+
+  fastify.get('/health', async (req, reply) => {
+    const result = { status: 'ok', checks: {} };
+    let failed = false;
+
+    if (process.env.DATABASE_URL) {
+      try {
+        const { getPool } = require('./db/pool');
+        const r = await getPool().query('SELECT 1 AS ok');
+        result.checks.postgres = r.rows[0].ok === 1 ? 'ok' : 'unexpected';
+        if (result.checks.postgres !== 'ok') failed = true;
+      } catch (e) {
+        result.checks.postgres = `fail: ${e.message}`;
+        failed = true;
+      }
+    } else {
+      result.checks.postgres = 'not configured';
+    }
+
+    if (process.env.REDIS_URL) {
+      try {
+        const { getRedis } = require('./db/redis');
+        const pong = await getRedis().ping();
+        result.checks.redis = pong === 'PONG' ? 'ok' : `unexpected: ${pong}`;
+        if (result.checks.redis !== 'ok') failed = true;
+      } catch (e) {
+        result.checks.redis = `fail: ${e.message}`;
+        failed = true;
+      }
+    } else {
+      result.checks.redis = 'not configured';
+    }
+
+    if (failed) {
+      result.status = 'degraded';
+      reply.code(503);
+    }
+    return result;
+  });
+
   // --- REST API routes ---
 
   // Workspace
