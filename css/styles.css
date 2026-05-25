@@ -1685,3 +1685,27 @@ body.dark-mode {
 input[type="checkbox"] {
   width: auto;
 }
+
+/* --- Phase 2 auth controls --- */
+.auth-controls {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(20, 20, 24, 0.92);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.auth-controls[hidden] { display: none; }
+.auth-controls .btn { padding: 4px 10px; font-size: 13px; }
+.auth-user {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.auth-user[hidden] { display: none; }
+#user-email { opacity: 0.85; font-size: 12px; }

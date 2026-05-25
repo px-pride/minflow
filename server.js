@@ -59,6 +59,39 @@ async function startServer({ dataDir, port, logger = true } = {}) {
     };
   }
 
+  // --- Clerk auth (optional — skipped if env vars absent, e.g. local Electron mode) ---
+
+  const clerkConfigured = !!(process.env.CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);
+
+  if (clerkConfigured) {
+    const { clerkPlugin } = require('@clerk/fastify');
+    await fastify.register(clerkPlugin);
+  }
+
+  // --- Clerk webhook (raw body required for Svix signature verification) ---
+
+  if (process.env.CLERK_WEBHOOK_SECRET) {
+    const { getEventFromRequest, handleEvent } = require('./db/clerk-webhook');
+    await fastify.register(async function (webhookScope) {
+      webhookScope.removeContentTypeParser('application/json');
+      webhookScope.addContentTypeParser(
+        'application/json',
+        { parseAs: 'buffer' },
+        (req, body, done) => done(null, body)
+      );
+      webhookScope.post('/webhooks/clerk', async (req, reply) => {
+        try {
+          const event = getEventFromRequest(req.body, req.headers);
+          const result = await handleEvent(event);
+          return result;
+        } catch (e) {
+          reply.code(400);
+          return { error: e.message };
+        }
+      });
+    });
+  }
+
   // --- Health check ---
   // Per textbook ch-01 "The Health Check That Wasn't": hit real dependencies,
   // not just process liveness. If DATABASE_URL / REDIS_URL aren't configured
@@ -102,6 +135,33 @@ async function startServer({ dataDir, port, logger = true } = {}) {
       reply.code(503);
     }
     return result;
+  });
+
+  // --- Auth + config endpoints (Phase 2) ---
+
+  // Public config — publishable key for the browser to init Clerk.
+  // Safe to expose: pk_* keys are designed to be public.
+  fastify.get('/api/config', async () => ({
+    clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY || null,
+    clerkEnabled: clerkConfigured,
+  }));
+
+  // Authenticated user info — returns Clerk session info + our users row.
+  // 401 if not authenticated; 503 if Clerk not configured.
+  fastify.get('/api/auth/me', async (req, reply) => {
+    if (!clerkConfigured) {
+      reply.code(503);
+      return { error: 'auth not configured' };
+    }
+    const { getAuth } = require('@clerk/fastify');
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      reply.code(401);
+      return { error: 'not authenticated' };
+    }
+    const { getUserByClerkId } = require('./db/clerk-webhook');
+    const user = await getUserByClerkId(auth.userId);
+    return { clerk_user_id: auth.userId, user };
   });
 
   // --- REST API routes ---

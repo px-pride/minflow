@@ -7,6 +7,16 @@
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body class="dark-mode">
+    <!-- Auth controls (Phase 2). Hidden until Clerk loads + /api/config confirms enabled. -->
+    <div id="auth-controls" class="auth-controls" hidden>
+      <button id="sign-in-btn" class="btn btn-secondary">Sign in</button>
+      <button id="upgrade-btn" class="btn btn-primary">Upgrade to sync</button>
+      <div id="user-info" class="auth-user" hidden>
+        <span id="user-email"></span>
+        <button id="account-btn" class="btn btn-secondary">Account</button>
+        <button id="sign-out-btn" class="btn btn-secondary">Sign out</button>
+      </div>
+    </div>
     <div id="app">
       <!-- Main Application -->
       <div id="main-app" class="main-app">
@@ -404,6 +414,7 @@
     </div>
 
     <!-- JavaScript modules -->
+    <script src="js/auth.js"></script>
     <script src="shared/deck-queries.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/models.js"></script>
