@@ -23,6 +23,7 @@
     "@fastify/websocket": "^11.2.0",
     "dotenv": "^17.4.2",
     "fastify": "^5.8.1",
+    "fractional-indexing": "^3.2.0",
     "ioredis": "^5.10.1",
     "pg": "^8.21.0",
     "svix": "^1.94.0"
