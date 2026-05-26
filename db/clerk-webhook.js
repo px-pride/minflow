@@ -54,4 +54,26 @@ async function getUserByClerkId(clerkId) {
   return r.rows[0] || null;
 }
 
-module.exports = { getEventFromRequest, handleEvent, getUserByClerkId };
+// JIT-provision a users row if the Clerk webhook hasn't reached us yet.
+// Necessary in dev where Clerk can't reach localhost — without this every
+// /sync/* call would fail with "user not found". In prod the webhook
+// usually arrives <1s after signup, so this is just a safety net.
+async function getOrCreateUserByClerkId(clerkId, email) {
+  const existing = await getUserByClerkId(clerkId);
+  if (existing) return existing;
+  const r = await getPool().query(
+    `INSERT INTO users (clerk_id, email)
+     VALUES ($1, $2)
+     ON CONFLICT (clerk_id) DO UPDATE SET email = EXCLUDED.email
+     RETURNING id, clerk_id, email, plan, created_at, deleted_at`,
+    [clerkId, email || `${clerkId}@unknown.local`]
+  );
+  return r.rows[0];
+}
+
+module.exports = {
+  getEventFromRequest,
+  handleEvent,
+  getUserByClerkId,
+  getOrCreateUserByClerkId,
+};

@@ -164,6 +164,192 @@ async function startServer({ dataDir, port, logger = true } = {}) {
     return { clerk_user_id: auth.userId, user };
   });
 
+  // --- Sync endpoints (Phase 3) — only registered when Clerk is configured ---
+
+  if (clerkConfigured) {
+    const { getAuth, clerkClient } = require('@clerk/fastify');
+    const { getOrCreateUserByClerkId } = require('./db/clerk-webhook');
+    const { applyDelta, emptyWorkspace } = require('./db/sync-engine');
+    const { getPool } = require('./db/pool');
+
+    const MAX_WORKSPACE_BYTES = 10 * 1024 * 1024; // 10MB cap
+
+    async function resolveUser(authUserId) {
+      let email = null;
+      try {
+        const cu = await clerkClient.users.getUser(authUserId);
+        email = cu?.emailAddresses?.[0]?.emailAddress || null;
+      } catch (_) { /* fall through with placeholder */ }
+      return getOrCreateUserByClerkId(authUserId, email);
+    }
+
+    fastify.post('/sync/push', async (req, reply) => {
+      const auth = getAuth(req);
+      if (!auth.userId) { reply.code(401); return { error: 'not authenticated' }; }
+      const { client_id, delta } = req.body || {};
+      if (!client_id || typeof client_id !== 'string') {
+        reply.code(400); return { error: 'client_id required' };
+      }
+      if (!Array.isArray(delta)) {
+        reply.code(400); return { error: 'delta must be array' };
+      }
+      // TODO Phase 4: enforce users.plan === 'paid' here; return 402 otherwise.
+
+      const user = await resolveUser(auth.userId);
+      const client = await getPool().connect();
+      const accepted = [];
+      const discarded = [];
+      try {
+        await client.query('BEGIN');
+        let row = await client.query(
+          'SELECT id, data, field_timestamps FROM workspaces WHERE user_id = $1 FOR UPDATE',
+          [user.id]
+        );
+        let workspaceId, ws;
+        if (row.rows.length === 0) {
+          const empty = emptyWorkspace();
+          const ins = await client.query(
+            `INSERT INTO workspaces (user_id, data, field_timestamps)
+             VALUES ($1, $2::jsonb, $3::jsonb) RETURNING id`,
+            [user.id, JSON.stringify(empty.data), JSON.stringify(empty.field_timestamps)]
+          );
+          workspaceId = ins.rows[0].id;
+          ws = empty;
+        } else {
+          workspaceId = row.rows[0].id;
+          ws = { data: row.rows[0].data, field_timestamps: row.rows[0].field_timestamps };
+        }
+
+        for (const d of delta) {
+          const r = applyDelta(ws, d);
+          if (r.accepted) accepted.push(d.field);
+          else discarded.push({ field: d.field, reason: r.reason, server_timestamp: r.server_timestamp });
+        }
+
+        const serialized = JSON.stringify(ws.data);
+        if (serialized.length > MAX_WORKSPACE_BYTES) {
+          await client.query('ROLLBACK');
+          reply.code(413);
+          return { error: 'workspace size exceeds 10MB limit', size: serialized.length };
+        }
+
+        await client.query(
+          `UPDATE workspaces
+              SET data = $1::jsonb,
+                  field_timestamps = $2::jsonb,
+                  last_synced = now(),
+                  updated_at = now()
+            WHERE id = $3`,
+          [serialized, JSON.stringify(ws.field_timestamps), workspaceId]
+        );
+
+        if (accepted.length > 0) {
+          const acceptedDeltas = delta.filter((d) => accepted.includes(d.field));
+          await client.query(
+            `INSERT INTO sync_events (user_id, workspace_id, change, client_id, timestamp)
+             VALUES ($1, $2, $3::jsonb, $4, now())`,
+            [user.id, workspaceId, JSON.stringify({ delta: acceptedDeltas }), client_id]
+          );
+        }
+
+        await client.query('COMMIT');
+
+        // Publish accepted deltas to Redis so other devices' WS subscribers
+        // receive the change. Best-effort — if Redis is down we still
+        // return success (other devices will reconcile via /sync/pull).
+        if (accepted.length > 0 && process.env.REDIS_URL) {
+          try {
+            const { getRedis } = require('./db/redis');
+            const acceptedDeltas = delta.filter((d) => accepted.includes(d.field));
+            await getRedis().publish(
+              `sync:user:${user.id}`,
+              JSON.stringify({ client_id, delta: acceptedDeltas })
+            );
+          } catch (e) {
+            fastify.log.warn({ err: e.message }, 'failed to publish sync delta');
+          }
+        }
+
+        return { accepted, discarded };
+      } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        reply.code(500);
+        return { error: err.message };
+      } finally {
+        client.release();
+      }
+    });
+
+    // WebSocket — pushes deltas from server when another device of the same
+    // user makes a change. Uses Redis pub/sub for multi-instance fan-out.
+    await fastify.register(async function (wsScope) {
+      wsScope.get('/sync/subscribe', { websocket: true }, async (socket, req) => {
+        const auth = getAuth(req);
+        if (!auth.userId) {
+          try { socket.close(1008, 'unauthorized'); } catch (_) {}
+          return;
+        }
+        const user = await resolveUser(auth.userId);
+        let thisClientId = null;
+
+        const { getRedis } = require('./db/redis');
+        const sub = getRedis().duplicate();
+        try { await sub.subscribe(`sync:user:${user.id}`); }
+        catch (e) {
+          fastify.log.warn({ err: e.message }, 'failed to subscribe to sync channel');
+          try { socket.close(1011, 'redis subscribe failed'); } catch (_) {}
+          return;
+        }
+
+        sub.on('message', (chan, msg) => {
+          try {
+            const event = JSON.parse(msg);
+            if (event.client_id === thisClientId) return; // skip echo
+            if (socket.readyState === 1) {
+              socket.send(JSON.stringify({
+                type: 'delta',
+                delta: event.delta,
+                sender_client_id: event.client_id,
+              }));
+            }
+          } catch (_) { /* drop bad redis message */ }
+        });
+
+        socket.on('message', (raw) => {
+          try {
+            const msg = JSON.parse(raw.toString());
+            if (msg.type === 'hello' && typeof msg.client_id === 'string') {
+              thisClientId = msg.client_id;
+              socket.send(JSON.stringify({ type: 'ready' }));
+            }
+          } catch (_) { /* drop bad client message */ }
+        });
+
+        socket.on('close', () => {
+          sub.unsubscribe().catch(() => {});
+          sub.disconnect();
+        });
+      });
+    });
+
+    fastify.get('/sync/pull', async (req, reply) => {
+      const auth = getAuth(req);
+      if (!auth.userId) { reply.code(401); return { error: 'not authenticated' }; }
+      // TODO Phase 4: enforce users.plan === 'paid' here.
+
+      const user = await resolveUser(auth.userId);
+      const r = await getPool().query(
+        'SELECT data, field_timestamps, last_synced FROM workspaces WHERE user_id = $1 LIMIT 1',
+        [user.id]
+      );
+      if (r.rows.length === 0) {
+        const empty = emptyWorkspace();
+        return { data: empty.data, field_timestamps: empty.field_timestamps, last_synced: null };
+      }
+      return r.rows[0];
+    });
+  }
+
   // --- REST API routes ---
 
   // Workspace
